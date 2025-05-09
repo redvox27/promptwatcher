@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="grid grid-cols-1 gap-6 md:grid-cols-4">
+    <!-- Sidebar with stats and filters -->
+    <div class="md:col-span-1">
+        <div class="bg-white p-4 rounded shadow">
+            <h2 class="text-xl font-semibold mb-4">Statistics</h2>
+            <div 
+                id="stats-container" 
+                hx-get="/api/prompts/stats" 
+                hx-trigger="load"
+                hx-swap="innerHTML"
+            >
+                <div class="animate-pulse">
+                    <div class="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                    <div class="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
+                    <div class="h-4 bg-gray-200 rounded w-5/6"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white p-4 rounded shadow mt-4">
+            <h2 class="text-xl font-semibold mb-4">Filter</h2>
+            <form hx-get="/api/prompts/ui/list" hx-target="#prompts-list" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Project</label>
+                    <select name="project_name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <option value="">All Projects</option>
+                        <!-- Projects will be populated here -->
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Terminal Type</label>
+                    <select name="terminal_type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <option value="">All Terminals</option>
+                        <option value="iTerm2">iTerm2</option>
+                        <!-- Other terminals will be added here -->
+                    </select>
+                </div>
+                
+                <div>
+                    <button type="submit" class="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                        Apply Filters
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Main content area with prompt list -->
+    <div class="md:col-span-3">
+        <div class="bg-white p-4 rounded shadow">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold">Prompts</h2>
+                <div>
+                    <button 
+                        class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
+                        hx-get="/api/prompts/ui/list" 
+                        hx-target="#prompts-list"
+                        hx-trigger="click"
+                    >
+                        Refresh
+                    </button>
+                </div>
+            </div>
+            
+            <div 
+                id="prompts-list" 
+                hx-get="/api/prompts/ui/list" 
+                hx-trigger="load"
+                class="space-y-4"
+            >
+                <!-- Placeholder for loading state -->
+                <div class="animate-pulse space-y-4">
+                    <div class="h-24 bg-gray-200 rounded"></div>
+                    <div class="h-24 bg-gray-200 rounded"></div>
+                    <div class="h-24 bg-gray-200 rounded"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for viewing prompt details -->
+<div id="prompt-detail-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center" x-data="{ open: false }" x-show="open" x-on:prompt-detail.window="open = true" x-on:click.self="open = false">
+    <div class="bg-white p-6 rounded-lg shadow-lg max-w-2xl w-full max-h-screen overflow-y-auto" x-on:click.stop>
+        <div class="flex justify-between items-start">
+            <h3 class="text-xl font-bold">Prompt Details</h3>
+            <button class="text-gray-500 hover:text-gray-700" x-on:click="open = false">&times;</button>
+        </div>
+        
+        <div id="prompt-detail-content" class="mt-4">
+            <!-- Prompt details will be loaded here -->
+        </div>
+        
+        <div class="mt-6 flex justify-end">
+            <button class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded" x-on:click="open = false">
+                Close
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}

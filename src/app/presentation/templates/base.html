@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}PromptWatcher{% endblock %}</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.2"></script>
+    <!-- Alpine.js (optional for more complex UI interactions) -->
+    <script defer src="https://unpkg.com/alpinejs@3.12.3/dist/cdn.min.js"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static/css/main.css">
+    {% block head %}{% endblock %}
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <header class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-800">PromptWatcher</h1>
+            <p class="text-gray-600">Monitor and analyze Claude prompts</p>
+        </header>
+        
+        {% block content %}{% endblock %}
+    </div>
+    
+    {% block scripts %}{% endblock %}
+</body>
+</html>
