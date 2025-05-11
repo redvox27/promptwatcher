@@ -7,7 +7,7 @@ from opensearchpy import AsyncOpenSearch
 from app.domain.repositories import PromptRepository
 from app.domain.services import PromptCaptureService
 from app.infra.db.repositories import OpenSearchPromptRepository
-from app.infra.terminal.monitor import ITerm2PromptCaptureService, MockPromptCaptureService
+from app.infra.terminal.monitor import MockPromptCaptureService
 from app.settings import Settings
 
 
@@ -40,6 +40,5 @@ class Services:
     @cached_property
     def prompt_capture_service(self) -> PromptCaptureService:
         """Get the prompt capture service."""
-        if self._use_mock:
-            return MockPromptCaptureService()
-        return ITerm2PromptCaptureService()
+        # Always use MockPromptCaptureService
+        return MockPromptCaptureService(self.prompt_repository, self._settings)

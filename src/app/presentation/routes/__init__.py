@@ -5,6 +5,7 @@ from fastapi.responses import HTMLResponse
 
 from app.presentation.deps import get_templates
 from app.presentation.routes.prompts import router as prompts_router
+from app.presentation.routes.monitors import router as monitors_router
 
 
 def get_routes():
@@ -12,6 +13,7 @@ def get_routes():
     return [
         home_router,
         prompts_router,
+        monitors_router,
     ]
 
 

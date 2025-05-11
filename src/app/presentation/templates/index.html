@@ -5,18 +5,52 @@
     <!-- Sidebar with stats and filters -->
     <div class="md:col-span-1">
         <div class="bg-white p-4 rounded shadow">
-            <h2 class="text-xl font-semibold mb-4">Statistics</h2>
-            <div 
-                id="stats-container" 
-                hx-get="/api/prompts/stats" 
-                hx-trigger="load"
-                hx-swap="innerHTML"
-            >
-                <div class="animate-pulse">
-                    <div class="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                    <div class="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
-                    <div class="h-4 bg-gray-200 rounded w-5/6"></div>
+            <h2 class="text-xl font-semibold mb-4">Controls</h2>
+            
+            <!-- Mock Data Generation -->
+            <div class="space-y-2">
+                <h3 class="font-medium text-gray-700">Generate Test Data</h3>
+                <div class="flex items-center space-x-2">
+                    <input 
+                        type="number" 
+                        id="mock-count" 
+                        name="count" 
+                        value="5" 
+                        min="1" 
+                        max="100" 
+                        class="w-1/3 border rounded px-2 py-1"
+                    >
+                    <button 
+                        class="flex-grow bg-blue-500 hover:bg-blue-600 text-white font-bold py-1 px-3 rounded"
+                        hx-post="/api/monitors/mock"
+                        hx-trigger="click"
+                        hx-include="#mock-count"
+                        hx-swap="none"
+                        hx-indicator="#indicator"
+                    >
+                        Generate Mock Data
+                    </button>
                 </div>
+            </div>
+            
+            <!-- Direct Submission Form -->
+            <div class="space-y-2 mt-4">
+                <h3 class="font-medium text-gray-700">Submit Prompt</h3>
+                <form hx-post="/api/monitors/submit" hx-swap="none" hx-indicator="#indicator">
+                    <div class="space-y-2">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Prompt</label>
+                            <textarea name="prompt_text" rows="3" class="w-full border rounded px-2 py-1 text-sm" placeholder="Enter the prompt text..."></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Response</label>
+                            <textarea name="response_text" rows="3" class="w-full border rounded px-2 py-1 text-sm" placeholder="Enter the response text..."></textarea>
+                        </div>
+                        <button type="submit" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">
+                            Submit Prompt
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
         
@@ -35,8 +69,9 @@
                     <label class="block text-sm font-medium text-gray-700">Terminal Type</label>
                     <select name="terminal_type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                         <option value="">All Terminals</option>
-                        <option value="iTerm2">iTerm2</option>
-                        <!-- Other terminals will be added here -->
+                        <option value="macOS Terminal">macOS Terminal</option>
+                        <option value="Direct API Submission">Direct API</option>
+                        <option value="Mock">Mock</option>
                     </select>
                 </div>
                 
@@ -54,12 +89,19 @@
         <div class="bg-white p-4 rounded shadow">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-xl font-semibold">Prompts</h2>
-                <div>
+                <div class="flex items-center">
+                    <div id="indicator" class="htmx-indicator mr-2">
+                        <svg class="animate-spin h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                        </svg>
+                    </div>
                     <button 
                         class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
                         hx-get="/api/prompts/ui/list" 
                         hx-target="#prompts-list"
                         hx-trigger="click"
+                        hx-indicator="#indicator"
                     >
                         Refresh
                     </button>
