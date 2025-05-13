@@ -109,9 +109,12 @@ async def stop_all_monitors(
     
     try:
         await monitor_manager.stop_all()
+        logger.info("All monitors stopped successfully")
         return MonitorResponse(message="All monitors stopped")
     except Exception as e:
         logger.error(f"Error stopping monitors: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
 
 
