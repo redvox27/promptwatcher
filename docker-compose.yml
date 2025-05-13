@@ -65,9 +65,25 @@ services:
       - MONITORING_INTERVAL=5.0
       - DOCKER_HELPER_IMAGE=alpine:latest
       - DOCKER_TIMEOUT=10
+      - HOST_PROC=/host/proc  # Point to the host's proc filesystem
+      - HOST_DEV=/host/dev    # Point to the host's dev filesystem
+      - HOST_OS=macos         # Explicitly set the host OS type for better detection
+      - DOCKER_HOST=${DOCKER_HOST:-unix:///var/run/docker.sock}  # Allow override via .env
+      - DOCKER_API_VERSION=1.41
+      - PYTHONUNBUFFERED=1    # For better logging
     volumes:
       - ./:/app
       - /var/run/docker.sock:/var/run/docker.sock  # Mount Docker socket for host access
+      - /proc:/host/proc:ro    # Mount host's proc filesystem as read-only
+      - /dev:/host/dev:ro      # Mount host's device filesystem as read-only
+      - /var/run:/host/var/run:ro  # Mount run directory for socket access
+      - /run:/host/run:ro      # Additional run directory on some systems
+      - /etc/passwd:/host/etc/passwd:ro  # Mount passwd file for username lookup
+      - /etc/group:/host/etc/group:ro    # Mount group file for group lookup
+    privileged: true           # Required for accessing host resources
+    pid: "host"                # Use host's PID namespace directly
+    # Note: We can't use both network_mode and networks, so we prioritize OpenSearch access
+    # network_mode: "host"     # Share the host's network namespace for better access
     networks:
       - opensearch-net
     depends_on:

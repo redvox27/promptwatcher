@@ -320,11 +320,43 @@ class TerminalMonitorManager:
     def _initialize_components(self):
         """Initialize the terminal monitoring components."""
         try:
+            # Log environment for debugging
+            host_proc = os.environ.get("HOST_PROC", "/proc")
+            logger.info(f"Using HOST_PROC path: {host_proc}")
+            logger.info(f"Host proc directory exists: {os.path.exists('/host/proc')}")
+            
+            # Check if we have host access
+            has_host_access = os.path.exists('/host/proc') or host_proc != "/proc"
+            logger.info(f"Application has host access: {has_host_access}")
+            
             # Create Docker client
             self.docker_client = DockerClient()
             
             # Create session detector
             self.session_detector = TerminalSessionDetector(self.docker_client)
+            
+            # Log session detector configuration
+            logger.info(f"Session detector using proc path: {self.session_detector.host_proc}")
+            logger.info(f"Session detector direct access enabled: {self.session_detector.use_host_proc}")
+            
+            # Test session detection
+            try:
+                sessions = self.session_detector.list_terminal_sessions()
+                terminal_count = len([s for s in sessions if s.get("terminal", "?") != "?"])
+                logger.info(f"Initial session detection found {terminal_count} terminal sessions")
+                
+                # Log a sample of sessions for debugging
+                for i, session in enumerate(sessions):
+                    if i >= 3:  # Only log the first 3 sessions
+                        break
+                    if session.get("terminal", "?") != "?":
+                        logger.info(
+                            f"Sample terminal session: PID={session.get('pid')}, "
+                            f"Terminal={session.get('terminal')}, "
+                            f"Command={session.get('command', '')[:50]}"
+                        )
+            except Exception as e:
+                logger.error(f"Error during initial session detection: {str(e)}")
             
             # Create device identifier
             self.device_identifier = TerminalDeviceIdentifier(self.docker_client)
@@ -365,6 +397,8 @@ class TerminalMonitorManager:
             
         except Exception as e:
             logger.error(f"Error initializing monitoring components: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
             # Fall back to mock implementation
             self.coordinator = None
     
