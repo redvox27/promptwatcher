@@ -51,3 +51,8 @@ Now I can tell Claude,
 > "Please implement steps X, Y, and Z from the plan."
 
 Once I’ve tested those, I can move on to the next ones. No more surprise features. I finally feel in control of the build process, and I actually know what’s being developed—and why.
+
+
+## Random gedachten
+- Het vragen naar tests was enorm nuttig voor het debuggen van een docker-connectie naar de host machine. 
+- Als Claude een test heeft geschreven en de implementatie probeert, lijkt Claude iteratief de test slagende proberen te maken. 

@@ -2,10 +2,21 @@
 
 import logging
 import re
+import subprocess
+import shlex
 from typing import Dict, List, Optional, Union
 
-import docker
-from docker.errors import DockerException
+# Try to import docker library but provide fallback
+try:
+    import docker
+    from docker.errors import DockerException
+    DOCKER_SDK_AVAILABLE = True
+except ImportError:
+    DOCKER_SDK_AVAILABLE = False
+    
+    # Define a dummy exception class for consistency
+    class DockerException(Exception):
+        pass
 
 logger = logging.getLogger(__name__)
 
@@ -26,19 +37,25 @@ class DockerClient:
         Returns:
             bool: True if connection successful, False otherwise
         """
+        # Check if docker command is available using direct command
         try:
-            # Use the Docker socket directly with correct URL format
-            self.client = docker.from_env()
-            # Alternatively, try direct socket path if from_env() doesn't work
-            # self.client = docker.DockerClient(base_url='unix://var/run/docker.sock')
-            # Test connection
-            self.client.ping()
-            self.connected = True
-            logger.info("Successfully connected to Docker daemon")
-            return True
-        except DockerException as e:
+            result = subprocess.run(
+                ["docker", "version"], 
+                capture_output=True, 
+                text=True,
+                timeout=5
+            )
+            if result.returncode == 0:
+                logger.info("Docker CLI is available")
+                self.connected = True
+                return True
+            else:
+                logger.error(f"Docker CLI check failed: {result.stderr}")
+                self.connected = False
+                return False
+        except Exception as e:
+            logger.error(f"Failed to check Docker CLI: {str(e)}")
             self.connected = False
-            logger.error(f"Failed to connect to Docker daemon: {str(e)}")
             return False
 
     def is_connected(self) -> bool:
@@ -48,15 +65,8 @@ class DockerClient:
         Returns:
             bool: True if connected, False otherwise
         """
-        if not self.connected or not self.client:
-            return False
-        
-        try:
-            self.client.ping()
-            return True
-        except DockerException:
-            self.connected = False
-            return False
+        # Re-check connection
+        return self.connect()
 
     def validate_command(self, command: str) -> bool:
         """
@@ -102,24 +112,51 @@ class DockerClient:
             raise ValueError(f"Command not allowed: {command}")
         
         try:
-            result = self.client.containers.run(
-                'alpine:latest',
-                command,
-                remove=True,        # Remove container after execution
-                privileged=True,     # Required for accessing host processes
-                pid='host',          # Use host's PID namespace
-                network='host',      # Use host's network namespace
-                stdout=True,         # Capture stdout
-                stderr=True,         # Capture stderr
-                detach=False,        # Run in foreground
-                timeout=timeout      # Set timeout
+            # Construct docker run command
+            docker_run_cmd = [
+                "docker", "run",
+                "--rm",                 # Remove container after execution
+                "--privileged",         # Required for accessing host processes
+                "--pid=host",           # Use host's PID namespace
+                "--network=host",       # Use host's network namespace
+                "alpine:latest",
+                "sh", "-c", command     # Run command
+            ]
+            
+            # Run the command with timeout
+            result = subprocess.run(
+                docker_run_cmd,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                check=True
             )
             
-            # Convert bytes to string if needed
-            if isinstance(result, bytes):
-                result = result.decode('utf-8', errors='replace')
+            # Return stdout, or stderr if stdout is empty
+            output = result.stdout
+            
+            # Log output for debugging (truncated)
+            if output:
+                sample_lines = output.splitlines()[:3]
+                sample = "\n".join(sample_lines)
+                logger.debug(f"Command output sample (first 3 lines):\n{sample}")
+                logger.debug(f"Output length: {len(output)} characters, {len(output.splitlines())} lines")
+            else:
+                logger.warning("Command produced no output")
                 
-            return result
-        except DockerException as e:
+            if not output and result.stderr:
+                logger.warning(f"Command produced stderr: {result.stderr}")
+                output = result.stderr
+                
+            return output
+        except subprocess.CalledProcessError as e:
             logger.error(f"Docker command failed: {str(e)}")
-            raise
+            if e.stderr:
+                logger.error(f"Error output: {e.stderr}")
+            raise DockerException(f"Docker command failed: {str(e)}")
+        except subprocess.TimeoutExpired as e:
+            logger.error(f"Docker command timed out after {timeout} seconds")
+            raise DockerException(f"Docker command timed out: {str(e)}")
+        except Exception as e:
+            logger.error(f"Docker command failed with unexpected error: {str(e)}")
+            raise DockerException(f"Docker command failed: {str(e)}")
