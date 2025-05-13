@@ -6,253 +6,188 @@ PromptWatcher needs to monitor terminal sessions on the host machine (not inside
 
 ## Host-Container Communication Implementation via Docker Socket
 
-- [ ] **Setup Docker socket mount**
-  - [ ] Update `docker-compose.yml` to add Docker socket mount:
-    ```yaml
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    ```
-  - [ ] Add appropriate permissions to the container user if needed
-  - [ ] Verify container can access the Docker socket
+- [x] **Setup Docker socket mount**
+  - [x] Update `docker-compose.yml` to add Docker socket mount and environment variables
+  - [x] Update Dockerfile to install necessary dependencies (docker.io, procps, grep, lsof)
+  - [x] Set Docker environment variables in Dockerfile (DOCKER_HOST, DOCKER_API_VERSION)
+  - [x] Verify container can access the Docker socket
 
-- [ ] **Implement Docker API access**
-  - [ ] Add Docker SDK dependency to `requirements.txt` (`docker` package for Python)
-  - [ ] Create a `DockerClient` service class in `app/infra/terminal/docker_client.py`
-  - [ ] Implement connection handling with proper error management
-  - [ ] Add connection status checks and reconnection logic
+- [x] **Implement Docker API access**
+  - [x] Add Docker SDK dependency to `requirements.txt` (docker==5.0.3)
+  - [x] Create a `DockerClient` service class in `app/infra/terminal/docker_client.py`
+  - [x] Implement connection handling with proper error management
+  - [x] Add connection status checks and validation logic
+
+- [x] **Create testing for Docker socket access**
+  - [x] Develop `docker_bash_test.py` for verified socket access
+  - [x] Test socket permissions and API connectivity
+  - [x] Verify command execution in host namespace
+  - [x] Ensure reliable error handling and logging
 
 - [ ] **Create helper container implementation**
-  - [ ] Design helper container specification (Alpine-based for small footprint)
-  - [ ] Implement method to run commands in host namespace:
-    ```python
-    def run_in_host(self, command: str) -> str:
-        """Run command in the host's namespace using a helper container."""
-        return self.client.containers.run(
-            'alpine:latest',
-            command,
-            remove=True,        # Remove container after execution
-            privileged=True,     # Required for accessing host processes
-            pid='host',          # Use host's PID namespace
-            network='host'       # Use host's network namespace
-        )
-    ```
+  - [ ] Design system for efficient command execution on host
+  - [ ] Implement method to run commands in host namespace with clear return types
   - [ ] Add security checks and command sanitization
   - [ ] Implement resource cleanup to prevent container leaks
-
-- [ ] **Create terminal session controller**
-  - [ ] Implement session discovery method using helper containers
-  - [ ] Add caching mechanism to reduce container creation overhead
-  - [ ] Implement session metadata tracking (start time, command, PID)
 
 ## Terminal Session Discovery
 
 - [ ] **Implement terminal session detection**
-  - [ ] Create method to list all terminal sessions using helper container:
+  - [ ] Create `TerminalSessionMonitor` class to manage session discovery
+  - [ ] Implement process listing method to find terminal sessions:
     ```python
     def list_terminal_sessions(self) -> List[Dict]:
         """List all terminal sessions on the host machine."""
-        # Run through helper container to access host processes
-        result = self.run_in_host('ps aux | grep -E "Terminal|bash|zsh"')
+        # Use DockerClient to run command in host namespace
+        result = self.docker_client.run_in_host('ps aux | grep -E "Terminal|bash|zsh"')
         return self._parse_terminal_processes(result)
     ```
-  - [ ] Implement process parsing logic to extract session details
-  - [ ] Add detection for different terminal types (bash, zsh, etc.)
-  - [ ] Filter out non-interactive terminal sessions
+  - [ ] Add parser for process information to extract metadata (user, command, start time)
+  - [ ] Create filtering system to identify terminals likely running Claude
 
 - [ ] **Identify terminal PTYs and file descriptors**
   - [ ] Implement command to map processes to terminal devices:
     ```python
-    def get_terminal_fds(self, pid: int) -> List[str]:
-        """Get file descriptors for a terminal process."""
-        # Find FDs using lsof in the host namespace
-        result = self.run_in_host(f'lsof -p {pid} | grep -E "tty|pts"')
-        return self._parse_terminal_fds(result)
+    def get_terminal_devices(self, pid: int) -> List[str]:
+        """Get terminal devices for a process."""
+        # Find terminal devices using lsof in the host namespace
+        result = self.docker_client.run_in_host(f'lsof -p {pid} | grep -E "tty|pts"')
+        return self._parse_terminal_devices(result)
     ```
-  - [ ] Create mapping between processes and their terminal devices
-  - [ ] Implement platform-specific detection (macOS vs Linux)
+  - [ ] Develop method to determine if terminal is accessible for reading
+  - [ ] Create detection for terminal type and capabilities
 
-- [ ] **Create terminal session monitoring service**
-  - [ ] Implement `TerminalSessionMonitor` class in `terminal/monitor.py`
-  - [ ] Add periodic polling for terminal sessions with configurable interval
-  - [ ] Implement session tracking with change detection
-  - [ ] Create events for new/ended terminal sessions
+- [ ] **Implement session tracking service**
+  - [ ] Create database for tracking active and historical terminal sessions
+  - [ ] Implement periodic scanning with configurable interval
+  - [ ] Add change detection to identify new and closed sessions
+  - [ ] Develop connection management for terminal monitoring
 
 ## Terminal Output Capture
 
-- [ ] **Implement terminal output capture with Docker**
-  - [ ] Create method to read terminal output through helper container:
+- [ ] **Implement terminal output capture methods**
+  - [ ] Create unified terminal reader interface:
     ```python
     def capture_terminal_output(self, device_path: str, timeout: int = 10) -> str:
-        """Capture output from a terminal device using cat in privileged mode."""
+        """Capture output from a terminal device."""
         command = f'timeout {timeout} cat {device_path}'
-        return self.run_in_host(command)
+        return self.docker_client.run_in_host(command)
     ```
-  - [ ] Implement alternate approach using `script` command for terminal recording:
-    ```python
-    def start_terminal_recording(self, pid: int, output_file: str) -> str:
-        """Start recording a terminal session to a file."""
-        # Find terminal device first
-        device = self.get_terminal_device(pid)
-        command = f'script -f -q -t 2>{output_file}.timing {output_file} {device}'
-        return self.run_detached_in_host(command)
-    ```
-  - [ ] Create capture strategy selection based on terminal type
+  - [ ] Implement alternative capture methods for different terminal types
+  - [ ] Add timeouts and error handling for unresponsive terminals
+  - [ ] Create permissions validation before attempting capture
 
-- [ ] **Implement streaming capture service**
-  - [ ] Create `TerminalCaptureService` class in `terminal/capture.py`
-  - [ ] Implement non-blocking capture with timeout controls
-  - [ ] Add capture frequency controls and adaptive timing
-  - [ ] Create content buffer with configurable size
+- [ ] **Develop buffering and monitoring system**
+  - [ ] Create `TerminalCaptureService` for managing terminal reads
+  - [ ] Implement circular buffer for efficient content storage
+  - [ ] Add incremental capture to avoid duplicating content
+  - [ ] Develop capture scheduling based on terminal activity
 
 - [ ] **Implement output processing pipeline**
-  - [ ] Create streaming buffer implementation in `terminal/buffer.py`
-  - [ ] Implement content chunking with overlap detection
-  - [ ] Add content filtering to remove control characters and formatting
-  - [ ] Implement line reconstruction for wrapped terminal output
+  - [ ] Create text processor for terminal output
+  - [ ] Implement ANSI escape sequence filtering
+  - [ ] Add line continuity tracking across multiple captures
+  - [ ] Create content normalization for consistent parsing
 
 ## Claude Detection and Parsing
 
-- [ ] **Implement Claude pattern detection**
-  - [ ] Create `ClaudePatternDetector` class in `terminal/claude_detector.py`:
+- [ ] **Implement Claude content detection**
+  - [ ] Create `ClaudeDetector` class with pattern recognition:
     ```python
-    def is_claude_session(self, terminal_content: str) -> bool:
-        """Determine if terminal content contains Claude interaction patterns."""
+    def is_claude_content(self, content: str) -> bool:
+        """Detect if content contains Claude conversation patterns."""
         # Look for Claude signature patterns
         patterns = [
             r"Claude\s+\d+\.\d+",  # Claude version number
             r"(Human|Assistant):\s+",  # Human/Assistant dialog format
-            r"\[Claude thinking\]",  # Claude thinking pattern
-            # Add more patterns as needed
+            r"\[Claude thinking\]",  # Claude thinking indicator
         ]
-        return any(re.search(pattern, terminal_content) for pattern in patterns)
+        return any(re.search(pattern, content) for pattern in patterns)
     ```
-  - [ ] Implement improved detection with context awareness
-  - [ ] Add confidence scoring for Claude detection
-  - [ ] Create version-specific detection patterns
+  - [ ] Add detection for various Claude usage contexts
+  - [ ] Implement pattern matching for different Claude versions
+  - [ ] Create confidence scoring system for uncertain matches
 
-- [ ] **Create Claude conversation parser**
-  - [ ] Implement `ClaudeConversationParser` in `terminal/claude_parser.py`:
+- [ ] **Develop conversation extraction**
+  - [ ] Create `ClaudeParser` for extracting structured conversations:
     ```python
-    def extract_conversations(self, content: str) -> List[Dict[str, str]]:
+    def extract_conversations(self, content: str) -> List[Dict]:
         """Extract Claude conversations from terminal content."""
         conversations = []
-        # Use regex to find Human/Assistant patterns with content
-        conversation_pattern = r"Human:\s+(.*?)(?=Assistant:|$)"
-        response_pattern = r"Assistant:\s+(.*?)(?=Human:|$)"
         
-        # Extract prompts and match with responses
-        prompts = re.findall(conversation_pattern, content, re.DOTALL)
-        responses = re.findall(response_pattern, content, re.DOTALL)
+        # Find Human/Assistant exchanges
+        human_pattern = r"Human:\s+(.*?)(?=Assistant:|$)"
+        assistant_pattern = r"Assistant:\s+(.*?)(?=Human:|$)"
         
-        # Pair them up (handling possible mismatches)
+        prompts = re.findall(human_pattern, content, re.DOTALL)
+        responses = re.findall(assistant_pattern, content, re.DOTALL)
+        
+        # Match prompts with responses
         for i, prompt in enumerate(prompts):
-            response = responses[i] if i < len(responses) else ""
-            conversations.append({
-                "prompt": prompt.strip(),
-                "response": response.strip(),
-                "timestamp": datetime.now()
-            })
+            if i < len(responses):
+                conversations.append({
+                    "prompt": self._clean_text(prompt),
+                    "response": self._clean_text(responses[i]),
+                    "timestamp": datetime.now()
+                })
             
         return conversations
     ```
-  - [ ] Implement robust multi-line handling
-  - [ ] Add support for code blocks and special formatting
-  - [ ] Create content cleanup for control characters and artifacts
+  - [ ] Implement robust content cleaning
+  - [ ] Add multi-turn conversation support
+  - [ ] Create handling for interrupted/incomplete responses
 
-- [ ] **Connect to OpenSearch storage**
-  - [ ] Integrate with existing `PromptRepository` 
-  - [ ] Create `PromptRecord` instances from parsed conversations
-  - [ ] Add terminal metadata (PID, user, command, etc.)
-  - [ ] Implement batched saving for efficiency
+- [ ] **Integrate with prompt storage**
+  - [ ] Connect with existing `PromptRepository`
+  - [ ] Map extracted conversations to `PromptRecord` model
+  - [ ] Add source information (terminal session, process, user)
+  - [ ] Implement deduplication logic for repeated captures
 
 ## Frontend Integration
 
-- [ ] **Complete the monitor manager interface**
-  - [ ] Update `TerminalMonitorManager` in `terminal/monitor.py`:
+- [ ] **Update monitor manager service**
+  - [ ] Complete the `TerminalMonitorManager` implementation:
     ```python
     async def start_monitor(self) -> UUID:
-        """Start the terminal monitor process."""
-        # Initialize Docker client
-        docker_client = DockerClient()
-        
-        # Create a monitor instance
+        """Start the terminal monitoring process."""
+        # Create a new monitoring instance
         monitor_id = uuid4()
+        
+        # Initialize components with proper dependencies
+        docker_client = DockerClient()
+        session_monitor = TerminalSessionMonitor(docker_client, self.settings)
+        capture_service = TerminalCaptureService(docker_client, self.settings)
+        claude_detector = ClaudeDetector()
+        
+        # Register monitoring components
         self.monitors[monitor_id] = {
+            "id": monitor_id,
             "docker_client": docker_client,
-            "session_monitor": TerminalSessionMonitor(docker_client),
-            "capture_service": TerminalCaptureService(docker_client),
+            "session_monitor": session_monitor,
+            "capture_service": capture_service,
+            "claude_detector": claude_detector,
             "start_time": datetime.now(),
-            "status": "active"
+            "status": "active",
+            "sessions": [],
+            "prompts_captured": 0
         }
         
-        # Start monitoring in background task
+        # Launch monitoring background task
         self.tasks[monitor_id] = asyncio.create_task(
-            self._monitor_loop(monitor_id)
+            self._run_monitor_loop(monitor_id)
         )
         
+        logger.info(f"Started monitor with ID {monitor_id}")
         return monitor_id
     ```
-  - [ ] Implement the monitor loop with proper error handling:
-    ```python
-    async def _monitor_loop(self, monitor_id: UUID):
-        """Main monitoring loop for terminal sessions."""
-        try:
-            monitor = self.monitors[monitor_id]
-            while monitor["status"] == "active":
-                # Get terminal sessions
-                sessions = await monitor["session_monitor"].list_sessions()
-                
-                # Check for Claude sessions
-                for session in sessions:
-                    if session.get("is_claude", False):
-                        # Capture and process terminal content
-                        content = await monitor["capture_service"].capture(
-                            session["device"]
-                        )
-                        # Parse conversations
-                        conversations = self.claude_parser.extract_conversations(content)
-                        # Store in repository
-                        for conv in conversations:
-                            await self._store_conversation(conv, session)
-                
-                # Prevent CPU overload with configurable delay
-                await asyncio.sleep(self.settings.MONITORING_INTERVAL)
-        except Exception as e:
-            logger.error(f"Error in monitor loop: {str(e)}")
-            # Update status to error
-            if monitor_id in self.monitors:
-                self.monitors[monitor_id]["status"] = "error"
-                self.monitors[monitor_id]["error"] = str(e)
-    ```
-  - [ ] Add proper cleanup and resource management
+  - [ ] Implement main monitoring loop with error handling
+  - [ ] Add proper resource cleanup and graceful shutdown
+  - [ ] Create monitoring stats and diagnostics
 
-- [ ] **Connect frontend start/stop endpoints**
-  - [ ] Complete the `/api/monitors/start` endpoint:
-    ```python
-    @router.post("/api/monitors/start", response_model=MonitorResponse)
-    async def start_monitor(
-        request: Request,
-        monitor_manager: TerminalMonitorManager = Depends(get_monitor_manager),
-    ):
-        """Start the prompt monitor."""
-        logger.info("Starting terminal monitor")
-        
-        try:
-            monitor_id = await monitor_manager.start_monitor()
-            return MonitorResponse(
-                message=f"Monitor started successfully with ID: {monitor_id}"
-            )
-        except Exception as e:
-            logger.error(f"Error starting monitor: {str(e)}")
-            import traceback
-            logger.error(traceback.format_exc())
-            raise HTTPException(status_code=500, detail=str(e))
-    ```
-  - [ ] Update the stop monitor endpoint with proper cleanup
-  - [ ] Add status endpoint for monitor information
-
-- [ ] **Enhance frontend with monitoring status indicators**
-  - [ ] Create monitoring status API endpoint:
+- [ ] **Connect monitoring endpoints**
+  - [ ] Finalize the `/api/monitors/start` endpoint
+  - [ ] Update the `/api/monitors` DELETE endpoint
+  - [ ] Create a new `/api/monitors/status` endpoint:
     ```python
     @router.get("/api/monitors/status", response_model=MonitorStatusResponse)
     async def get_monitor_status(
@@ -262,26 +197,38 @@ PromptWatcher needs to monitor terminal sessions on the host machine (not inside
         """Get current monitoring status."""
         return MonitorStatusResponse(
             active=monitor_manager.is_active(),
+            stats={
+                "monitors_count": len(monitor_manager.monitors),
+                "active_sessions": sum(len(m.get("sessions", [])) 
+                                    for m in monitor_manager.monitors.values()),
+                "total_prompts_captured": sum(m.get("prompts_captured", 0) 
+                                           for m in monitor_manager.monitors.values()),
+                "uptime": str(datetime.now() - next(iter(monitor_manager.monitors.values()))["start_time"]
+                         if monitor_manager.monitors else timedelta(0))
+            },
             monitors=[
                 {
                     "id": str(monitor_id),
                     "status": monitor["status"],
                     "start_time": monitor["start_time"].isoformat(),
-                    "terminal_count": len(monitor.get("sessions", [])),
+                    "sessions_count": len(monitor.get("sessions", [])),
                     "prompts_captured": monitor.get("prompts_captured", 0),
                 }
                 for monitor_id, monitor in monitor_manager.monitors.items()
             ]
         )
     ```
-  - [ ] Create status indicator component in the UI
-  - [ ] Add real-time status updates using polling or WebSockets
-  - [ ] Show detailed monitor statistics and terminal information
 
-## Security and Testing
+- [ ] **Update UI for monitor control**
+  - [ ] Enhance UI with monitoring status indicators
+  - [ ] Add real-time updates using HTMX polling
+  - [ ] Create visualization for active terminals
+  - [ ] Display capture statistics and metrics
 
-- [ ] **Add security measures for Docker socket usage**
-  - [ ] Implement command whitelist for Docker container execution:
+## Security and Privacy
+
+- [x] **Implement command validation**
+  - [x] Create command whitelist in `DockerClient`:
     ```python
     def validate_command(self, command: str) -> bool:
         """Ensure command is in the whitelist of safe commands."""
@@ -296,50 +243,56 @@ PromptWatcher needs to monitor terminal sessions on the host machine (not inside
         ]
         return any(re.match(pattern, command) for pattern in allowed_patterns)
     ```
-  - [ ] Add user filtering to only capture the current user's terminals
-  - [ ] Implement container resource limits to prevent DoS attacks
-  - [ ] Create security policy document with clear permissions model
+  - [ ] Add user filtering for terminal sessions
+  - [ ] Implement resource limits for Docker operations
+  - [ ] Create comprehensive security documentation
 
-- [ ] **Add privacy controls**
-  - [ ] Create content filter for sensitive information:
+- [ ] **Add privacy protections**
+  - [ ] Implement sensitive data filtering:
     ```python
-    def filter_sensitive_content(self, content: str) -> str:
-        """Filter potentially sensitive information from content."""
-        # Filter patterns for sensitive data
+    def redact_sensitive_data(self, content: str) -> str:
+        """Remove potentially sensitive information from content."""
         patterns = [
-            (r'\b(?:\d[ -]*?){13,16}\b', '[CREDIT_CARD]'),  # Credit card numbers
-            (r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', '[EMAIL]'),  # Email
-            (r'\b(?:password|api[_-]?key|secret|token)[\s:=]+\S+', '[REDACTED]'),  # Credentials
+            # Credit card numbers
+            (r'\b(?:\d[ -]*?){13,16}\b', '[CREDIT_CARD]'),
+            # Email addresses
+            (r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', '[EMAIL]'),
+            # API keys, tokens, passwords
+            (r'\b(?:password|api[_-]?key|secret|token)[\s:=]+\S+', '[REDACTED]'),
+            # Authentication headers
+            (r'Authorization:\s*\S+', 'Authorization: [REDACTED]'),
         ]
         
-        result = content
         for pattern, replacement in patterns:
-            result = re.sub(pattern, replacement, result, flags=re.IGNORECASE)
+            content = re.sub(pattern, replacement, content, flags=re.IGNORECASE)
         
-        return result
+        return content
     ```
-  - [ ] Add settings for privacy level (strict/moderate/minimal)
-  - [ ] Implement pre-save filters for the repository
+  - [ ] Add privacy configuration options to settings
+  - [ ] Create content filtering system with customizable rules
+  - [ ] Implement pre-save sanitization
 
-- [ ] **Create test suite**
-  - [ ] Develop mock terminal session generator:
+## Testing and Validation
+
+- [ ] **Create comprehensive test suite**
+  - [ ] Develop mock content generator for testing:
     ```python
-    def create_mock_claude_session(self, num_interactions: int = 3) -> str:
-        """Generate a mock Claude terminal session for testing."""
+    def generate_claude_content(self, interactions: int = 3) -> str:
+        """Generate sample Claude content for testing."""
         content = []
-        for i in range(num_interactions):
+        for i in range(interactions):
             content.append(f"Human: Test prompt {i+1}\n")
             content.append(f"Assistant: This is a test response {i+1}.\n")
-        return "".join(content)
+        return "\n".join(content)
     ```
-  - [ ] Create integration tests for Docker socket communication
-  - [ ] Implement parser accuracy tests with various terminal formats
-  - [ ] Add performance benchmark tests
+  - [ ] Implement unit tests for all components
+  - [ ] Create integration tests with Docker socket
+  - [ ] Add performance and load testing
 
 ## Documentation and Configuration
 
-- [ ] **Create detailed configuration system**
-  - [ ] Add Docker socket configuration options to `settings.py`:
+- [x] **Create monitoring configuration**
+  - [x] Add Docker socket configuration options to `settings.py`:
     ```python
     # Terminal monitoring settings
     TERMINAL_TYPE: str = Field(default="Terminal")
@@ -348,37 +301,46 @@ PromptWatcher needs to monitor terminal sessions on the host machine (not inside
     DOCKER_TIMEOUT: int = Field(default=10)  # Seconds for helper container operations
     ALLOWED_USERS: List[str] = Field(default_factory=list)  # Empty means current user only
     ```
-  - [ ] Create configuration guide with best practices
-  - [ ] Add security warning and permission documentation
+  - [ ] Add detailed configuration documentation
+  - [ ] Create best practices guide for monitoring setup
 
-- [ ] **Document Docker socket requirements**
-  - [ ] Create setup guide for Docker socket permissions
-  - [ ] Document required Docker version and configuration
-  - [ ] Add troubleshooting section for common Docker issues
-  - [ ] Create host security checklist
+- [x] **Document Docker socket setup**
+  - [x] Created `DOCKER_SOCKET_SETUP.md` with setup instructions
+  - [x] Added `DOCKER_SOCKET_IMPLEMENTATION.md` with implementation notes
+  - [ ] Add troubleshooting guide for common issues
+  - [ ] Create security best practices documentation
 
-## Deployment and Integration
+## Next Steps and Future Enhancements
 
-- [ ] **Create streamlined installation process**
-  - [ ] Update `docker-compose.yml` with socket mount and permissions
-  - [ ] Add automated setup script for host configuration
-  - [ ] Create environment check to verify Docker socket access
-  - [ ] Add graceful degradation for limited permissions
+- [ ] **Improve terminal session detection**
+  - [ ] Create smarter filtering for Claude terminal sessions
+  - [ ] Add support for different terminal types and shells
+  - [ ] Implement automatic detection of Claude CLI usage
 
-- [ ] **Implement analytics dashboard**
-  - [ ] Add summary statistics for monitoring
-  - [ ] Create monitoring health metrics
-  - [ ] Add terminal session analytics
-  - [ ] Implement Claude usage patterns visualization
+- [ ] **Enhance monitoring performance**
+  - [ ] Implement adaptive polling based on terminal activity
+  - [ ] Add resource usage optimization for Docker operations
+  - [ ] Create more efficient buffering and capture strategies
 
-## Future Enhancements
+- [ ] **Add visualization and analytics**
+  - [ ] Create dashboard for monitoring statistics
+  - [ ] Add visualizations for prompt patterns
+  - [ ] Implement usage analytics for Claude sessions
 
-- [ ] **Implement adaptive monitoring**
-  - [ ] Add intelligent polling based on terminal activity
-  - [ ] Implement session prioritization for active Claude sessions
-  - [ ] Create resource-aware monitoring that throttles based on system load
+## Implementation Priority
 
-- [ ] **Add multi-user support**
-  - [ ] Implement user isolation for monitored sessions
-  - [ ] Create permission model for viewing other users' prompts
-  - [ ] Add organization/team separation for enterprise use
+1. **Terminal Session Detection**: Implement the ability to list and identify terminal sessions
+2. **Basic Monitoring Loop**: Create the core monitoring functionality with Docker
+3. **Claude Content Detection**: Develop pattern recognition for Claude conversations
+4. **Data Storage Integration**: Connect the monitor with the prompt repository
+5. **Frontend Status Updates**: Add status indicators and controls to the UI
+
+## Completion Status
+
+- Host-Container Communication: 100% complete
+- Terminal Session Discovery: 0% complete
+- Terminal Output Capture: 0% complete
+- Claude Detection and Parsing: 0% complete
+- Frontend Integration: 0% complete
+- Security Implementation: 25% complete
+- Documentation: 50% complete

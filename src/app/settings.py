@@ -2,7 +2,7 @@
 
 import os
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseSettings, Field
 
@@ -29,6 +29,12 @@ class Settings(BaseSettings):
     
     # Terminal monitoring settings
     TERMINAL_TYPE: str = Field(default="Terminal")
+    MONITORING_INTERVAL: float = Field(default=5.0)  # Seconds between checks
+    
+    # Docker settings for terminal monitoring
+    DOCKER_HELPER_IMAGE: str = Field(default="alpine:latest")
+    DOCKER_TIMEOUT: int = Field(default=10)  # Seconds for helper container operations
+    ALLOWED_USERS: List[str] = Field(default_factory=list)  # Empty means current user only
     
     # Paths
     BASE_DIR: Path = Path(__file__).parent.parent
