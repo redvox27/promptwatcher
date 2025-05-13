@@ -85,7 +85,8 @@ class TerminalSessionDetector:
                     # On macOS, use the 'ps' command to list processes with terminals
                     ps_cmd = "ps -ef | grep -v grep"
                     ps_result = self.docker_client.run_in_host(ps_cmd, use_host_proc=True)
-                    
+                    logger.info(f"PS RESULT {ps_result}")
+
                     # Parse ps output for macOS
                     if ps_result:
                         all_sessions.extend(self._parse_macos_ps_output(ps_result))
