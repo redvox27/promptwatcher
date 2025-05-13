@@ -226,11 +226,11 @@ PromptWatcher needs to monitor terminal sessions on the host machine (not inside
   - [x] ~~Create robust content cleaning~~ ✅
   - [x] ~~Implement handling for various conversation formats~~ ✅
 
-- [ ] **Integrate with prompt storage**
-  - [ ] Connect with existing `PromptRepository`
-  - [ ] Map extracted conversations to `PromptRecord` model
-  - [ ] Add source information (terminal session, process, user)
-  - [ ] Implement deduplication logic for repeated captures
+- [x] ~~**Integrate with prompt storage**~~ ✅
+  - [x] ~~Connect with existing `PromptRepository`~~ ✅
+  - [x] ~~Map extracted conversations to `PromptRecord` model~~ ✅
+  - [x] ~~Add source information (terminal session, process, user)~~ ✅
+  - [x] ~~Implement deduplication logic for repeated captures~~ ✅
 
 ## Frontend Integration
 
@@ -388,19 +388,11 @@ PromptWatcher needs to monitor terminal sessions on the host machine (not inside
   - [x] ~~Test interactive terminal detection with various process types~~ ✅
   - [x] ~~Implement error handling tests for robustness~~ ✅
 
-- [ ] **Create comprehensive test suite**
-  - [ ] Develop mock content generator for testing:
-    ```python
-    def generate_claude_content(self, interactions: int = 3) -> str:
-        """Generate sample Claude content for testing."""
-        content = []
-        for i in range(interactions):
-            content.append(f"Human: Test prompt {i+1}\n")
-            content.append(f"Assistant: This is a test response {i+1}.\n")
-        return "\n".join(content)
-    ```
-  - [ ] Implement unit tests for all components
-  - [ ] Create integration tests with Docker socket
+- [x] ~~**Create comprehensive test suite**~~ ✅
+  - [x] ~~Develop mock content generator for testing~~ ✅
+  - [x] ~~Implement unit tests for all components~~ ✅
+  - [x] ~~Create integration tests with Docker socket~~ ✅
+  - [x] ~~Add tests for repository integration~~ ✅
   - [ ] Add performance and load testing
 
 ## Documentation and Configuration
@@ -444,9 +436,9 @@ PromptWatcher needs to monitor terminal sessions on the host machine (not inside
 ## Implementation Priority
 
 1. ~~**Terminal Session Detection**: Implement the ability to list and identify terminal sessions~~ ✅
-2. **Basic Monitoring Loop**: Create the core monitoring functionality with Docker
-3. **Claude Content Detection**: Develop pattern recognition for Claude conversations
-4. **Data Storage Integration**: Connect the monitor with the prompt repository
+2. ~~**Basic Monitoring Loop**: Create the core monitoring functionality with Docker~~ ✅
+3. ~~**Claude Content Detection**: Develop pattern recognition for Claude conversations~~ ✅
+4. ~~**Data Storage Integration**: Connect the monitor with the prompt repository~~ ✅
 5. **Frontend Status Updates**: Add status indicators and controls to the UI
 
 ## Nice-to-Haves
@@ -467,7 +459,8 @@ PromptWatcher needs to monitor terminal sessions on the host machine (not inside
 - Terminal Session Discovery: 100% complete
 - Terminal Output Capture: 100% complete
 - Claude Detection and Parsing: 100% complete
+- Repository Integration: 100% complete
 - Frontend Integration: 0% complete
 - Security Implementation: 50% complete
 - Documentation: 85% complete
-- Testing: 75% complete (Unit tests added for session detection, device identification, session tracking, and terminal output capture)
+- Testing: 95% complete (Comprehensive test suite implemented, including unit tests for all components and integration tests for repository integration)

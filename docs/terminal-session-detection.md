@@ -519,27 +519,20 @@ All the major components of the terminal session detection and conversation capt
    - Completed ConversationRepositoryAdapter connecting to domain storage
    - Implemented deduplication using content hashing
    - Added metadata collection and storage
-   - Created unit tests for repository integration
-   
-   Note: While unit tests for the repository adapter and coordinator integration are passing,
-   some integration tests still need refinement.
+   - Created comprehensive tests for repository integration
+   - Fixed integration tests for the terminal capture to repository flow
 
 ### Next Steps ⏳
 
 The following features remain to be implemented:
 
-1. ❌ **Integration Test Refinement**:
-   - Fix the remaining integration tests for the terminal capture to repository flow
-   - Ensure proper mocking of dependencies in integration tests
-   - Add more comprehensive test coverage for edge cases
-
-2. ❌ **Frontend Controls**:
+1. ❌ **Frontend Controls**:
    - Add real-time monitoring status to the UI
    - Create controls for starting/stopping monitoring
    - Implement terminal session visualization
    - Add capture statistics and metrics
 
-3. ❌ **Performance Optimizations**:
+2. ❌ **Performance Optimizations**:
    - Implement adaptive scanning based on activity
    - Add resource limits for Docker operations
    - Optimize memory usage for long-running sessions
