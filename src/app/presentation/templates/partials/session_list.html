@@ -1,0 +1,60 @@
+{% if sessions %}
+    <div class="space-y-4">
+        {% for session in sessions %}
+            <div class="bg-gray-50 p-3 rounded border {% if session.is_active %}border-green-500{% else %}border-gray-300{% endif %}">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h3 class="font-medium">{{ session.command }}</h3>
+                        <div class="text-sm text-gray-600">
+                            <span>User: {{ session.user }}</span>
+                            <span class="mx-2">|</span>
+                            <span>PID: {{ session.pid }}</span>
+                            <span class="mx-2">|</span>
+                            <span>Terminal: {{ session.terminal }}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center">
+                        {% if session.is_readable %}
+                            <div class="mr-3">
+                                <div class="text-xs text-green-600">Readable</div>
+                                {% if session.is_active %}
+                                    <div class="text-xs">Active</div>
+                                {% endif %}
+                            </div>
+                            
+                            <button 
+                                class="bg-blue-500 hover:bg-blue-600 text-white text-sm py-1 px-2 rounded"
+                                hx-post="/api/monitors/sessions/{{ session.id }}/capture"
+                                hx-trigger="click"
+                                hx-indicator="#indicator"
+                                hx-swap="none"
+                            >
+                                Capture
+                            </button>
+                        {% else %}
+                            <div class="text-xs text-red-500">Not Readable</div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                {% if session.device_paths %}
+                    <div class="mt-2">
+                        <div class="text-xs text-gray-500">Devices:</div>
+                        <div class="text-xs font-mono">
+                            {% for device in session.device_paths %}
+                                <span class="{% if device_readable_map[device] %}text-green-600{% else %}text-red-500{% endif %}">
+                                    {{ device }}{% if not loop.last %}, {% endif %}
+                                </span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="bg-yellow-50 p-4 rounded border border-yellow-300">
+        <p class="text-center text-yellow-800">No active terminal sessions detected.</p>
+    </div>
+{% endif %}

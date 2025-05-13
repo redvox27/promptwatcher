@@ -1,0 +1,56 @@
+<div class="bg-white p-4 rounded shadow">
+    {% if active %}
+        <div class="flex items-center mb-4">
+            <div class="w-4 h-4 rounded-full bg-green-500 mr-2"></div>
+            <h2 class="text-xl font-semibold">Monitoring Active</h2>
+        </div>
+    {% else %}
+        <div class="flex items-center mb-4">
+            <div class="w-4 h-4 rounded-full bg-red-500 mr-2"></div>
+            <h2 class="text-xl font-semibold">Monitoring Inactive</h2>
+        </div>
+    {% endif %}
+    
+    <div class="grid grid-cols-2 gap-4">
+        <div class="bg-gray-50 p-3 rounded">
+            <h3 class="text-gray-500 text-sm">Uptime</h3>
+            <p class="text-2xl font-semibold">{{ stats.uptime }}</p>
+        </div>
+        <div class="bg-gray-50 p-3 rounded">
+            <h3 class="text-gray-500 text-sm">Active Monitors</h3>
+            <p class="text-2xl font-semibold">{{ stats.monitors_count }}</p>
+        </div>
+        <div class="bg-gray-50 p-3 rounded">
+            <h3 class="text-gray-500 text-sm">Active Sessions</h3>
+            <p class="text-2xl font-semibold">{{ stats.active_sessions }}</p>
+        </div>
+        <div class="bg-gray-50 p-3 rounded">
+            <h3 class="text-gray-500 text-sm">Prompts Captured</h3>
+            <p class="text-2xl font-semibold">{{ stats.total_prompts_captured }}</p>
+        </div>
+    </div>
+    
+    {% if monitors %}
+        <div class="mt-4">
+            <h3 class="font-medium mb-2">Monitor Details</h3>
+            <div class="space-y-2">
+                {% for monitor in monitors %}
+                    <div class="bg-gray-50 p-2 rounded">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">ID: {{ monitor.id[:8] }}...</span>
+                            <span class="text-gray-600">Status: 
+                                <span class="{% if monitor.status == 'active' %}text-green-500{% else %}text-gray-500{% endif %}">
+                                    {{ monitor.status }}
+                                </span>
+                            </span>
+                        </div>
+                        <div class="flex justify-between text-sm text-gray-500">
+                            <span>Active Sessions: {{ monitor.active_sessions }}</span>
+                            <span>Prompts: {{ monitor.prompts_captured }}</span>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+</div>

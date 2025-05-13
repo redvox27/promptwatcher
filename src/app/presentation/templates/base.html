@@ -17,8 +17,18 @@
 <body class="bg-gray-100 min-h-screen">
     <div class="container mx-auto px-4 py-8">
         <header class="mb-8">
-            <h1 class="text-3xl font-bold text-gray-800">PromptWatcher</h1>
-            <p class="text-gray-600">Monitor and analyze Claude prompts</p>
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-800">PromptWatcher</h1>
+                    <p class="text-gray-600">Monitor and analyze Claude prompts</p>
+                </div>
+                <div>
+                    <nav class="flex space-x-4">
+                        <a href="/" class="px-3 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded">Home</a>
+                        <a href="/monitoring" class="px-3 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded">Monitoring</a>
+                    </nav>
+                </div>
+            </div>
         </header>
         
         {% block content %}{% endblock %}
