@@ -6,8 +6,8 @@ from uuid import UUID
 
 from opensearchpy import AsyncOpenSearch, NotFoundError
 
-from app.domain.models import PromptRecord
-from app.domain.repositories import PromptRepository
+from src.app.domain.models import PromptRecord
+from src.app.domain.repositories import PromptRepository
 
 
 class OpenSearchPromptRepository(PromptRepository):

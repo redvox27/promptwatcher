@@ -56,3 +56,4 @@ Once I’ve tested those, I can move on to the next ones. No more surprise featu
 ## Random gedachten
 - Het vragen naar tests was enorm nuttig voor het debuggen van een docker-connectie naar de host machine. 
 - Als Claude een test heeft geschreven en de implementatie probeert, lijkt Claude iteratief de test slagende proberen te maken. 
+- Het is een goed idee om Claude periodiek alle tests te laten runnen, voordat je verder gaat met het ontwikkelen van nieuwe features. 

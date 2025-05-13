@@ -69,6 +69,7 @@ class TerminalMonitorCoordinator:
         tracking_service: SessionTrackingService,
         output_capture: TerminalOutputCapture = None,
         output_processor: TerminalOutputProcessor = None,
+        repository_adapter = None,  # Type is ConversationRepositoryAdapter
         settings: Optional[Dict] = None
     ):
         """
@@ -81,6 +82,7 @@ class TerminalMonitorCoordinator:
             tracking_service: For tracking terminal sessions
             output_capture: For capturing terminal output
             output_processor: For processing terminal output
+            repository_adapter: For storing conversations in the repository
             settings: Optional configuration settings
         """
         self.docker_client = docker_client
@@ -93,6 +95,9 @@ class TerminalMonitorCoordinator:
         # Terminal output capture components
         self.output_capture = output_capture or TerminalOutputCapture(docker_client)
         self.output_processor = output_processor or TerminalOutputProcessor()
+        
+        # Repository adapter for storing conversations
+        self.repository_adapter = repository_adapter
         
         # Configure buffer size and capture interval
         self.buffer_size = self.settings.get("buffer_size", 100000)  # Default: 100KB per session
@@ -294,10 +299,32 @@ class TerminalMonitorCoordinator:
         Returns:
             Created prompt record
         """
-        # This is a placeholder method to be implemented when we integrate with the repository
-        # For now, just log the prompt
-        logger.info(f"Would store prompt from session {session_id}: {prompt_text[:50]}...")
-        return None
+        if self.repository_adapter is None:
+            # No repository adapter available
+            logger.info(f"No repository adapter available. Would store prompt from session {session_id}: {prompt_text[:50]}...")
+            return None
+            
+        try:
+            # Store the conversation using the repository adapter
+            result = await self.repository_adapter.store_conversation(
+                session_id=session_id,
+                prompt_text=prompt_text,
+                response_text=response_text,
+                terminal_type=terminal_type,
+                project_name=project_name,
+                project_goal=project_goal
+            )
+            
+            if result:
+                logger.info(f"Stored prompt from session {session_id} with ID {result.id}")
+            else:
+                logger.info(f"Prompt from session {session_id} was not stored (possibly a duplicate)")
+                
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error storing prompt from session {session_id}: {str(e)}")
+            return None
     
     async def _capture_session_content(self, monitor_id: str, session: TerminalSession) -> None:
         """
@@ -330,9 +357,15 @@ class TerminalMonitorCoordinator:
             
             # Get list of terminal devices for this session
             devices = []
-            for device in session.terminal_devices:
-                if device.get("is_readable", False):
-                    devices.append(device.get("device_path"))
+            
+            # Check if session has terminal_devices attribute (added in tests)
+            if hasattr(session, 'terminal_devices') and session.terminal_devices:
+                for device in session.terminal_devices:
+                    if device.get("is_readable", False):
+                        devices.append(device.get("device_path"))
+            # Fall back to device_paths from the session
+            elif hasattr(session, 'device_paths') and session.device_paths:
+                devices = session.device_paths
             
             if not devices:
                 logger.debug(f"No readable devices found for session {session_id}")
@@ -368,20 +401,26 @@ class TerminalMonitorCoordinator:
                                 try:
                                     human_prompt, claude_response = self.output_processor.extract_message_pair(conversation)
                                     
-                                    # TODO: When integrated with repository, uncomment this to store records
-                                    # Record the prompt in the repository when we have a repository
-                                    # await self.store_prompt(
-                                    #     session_id=session_id,
-                                    #     prompt_text=human_prompt,
-                                    #     response_text=claude_response,
-                                    #     terminal_type=session.terminal_type or "terminal",
-                                    #     project_name=self.settings.get("project_name", "Unknown"),
-                                    #     project_goal=self.settings.get("project_goal", "")
-                                    # )
-                                    
-                                    logger.info(f"Extracted and stored prompt for session {session_id}")
+                                    # Record the prompt in the repository if we have a repository adapter
+                                    if self.repository_adapter:
+                                        prompt_record = await self.store_prompt(
+                                            session_id=session_id,
+                                            prompt_text=human_prompt,
+                                            response_text=claude_response,
+                                            terminal_type=session.terminal_type or "terminal",
+                                            project_name=self.settings.get("project_name", "Unknown"),
+                                            project_goal=self.settings.get("project_goal", "")
+                                        )
+                                        
+                                        if prompt_record:
+                                            logger.info(f"Extracted and stored prompt for session {session_id}")
+                                        else:
+                                            logger.info(f"Extracted but did not store prompt for session {session_id} (possibly a duplicate)")
+                                    else:
+                                        logger.info(f"Extracted prompt for session {session_id} but no repository adapter available")
+                                        
                                 except Exception as e:
-                                    logger.error(f"Error extracting message pair: {str(e)}")
+                                    logger.error(f"Error extracting or storing message pair: {str(e)}")
                     
             logger.debug(f"Captured and processed content from {len(results)} devices for session {session_id}")
                 

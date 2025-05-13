@@ -3,7 +3,7 @@
 from typing import List, Optional, Protocol, TypeVar
 from uuid import UUID
 
-from app.domain.models import PromptRecord
+from src.app.domain.models import PromptRecord
 
 T = TypeVar("T")
 

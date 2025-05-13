@@ -22,6 +22,7 @@ from src.app.infra.terminal.session_detector import TerminalSessionDetector
 from src.app.infra.terminal.terminal_device_identifier import TerminalDeviceIdentifier
 from src.app.infra.terminal.session_tracking_service import SessionTrackingService
 from src.app.infra.terminal.terminal_output_capture import TerminalOutputCapture, TerminalOutputBuffer, TerminalOutputProcessor
+from src.app.infra.terminal.conversation_repository_adapter import ConversationRepositoryAdapter
 from src.app.infra.terminal.terminal_monitor_coordinator import TerminalMonitorCoordinator, MonitorInfo, MonitorStatus
 
 logger = logging.getLogger(__name__)
@@ -332,6 +333,9 @@ class TerminalMonitorManager:
             self.output_capture = TerminalOutputCapture(self.docker_client)
             self.output_processor = TerminalOutputProcessor()
             
+            # Create repository adapter
+            self.repository_adapter = ConversationRepositoryAdapter(self.repository)
+            
             # Create session tracking service
             self.tracking_service = SessionTrackingService(
                 self.session_detector,
@@ -347,10 +351,13 @@ class TerminalMonitorManager:
                 self.tracking_service,
                 output_capture=self.output_capture,
                 output_processor=self.output_processor,
+                repository_adapter=self.repository_adapter,
                 settings={
                     "project_name": self.settings.PROJECT_NAME,
                     "project_goal": self.settings.PROJECT_GOAL,
-                    "monitoring_interval": self.settings.MONITORING_INTERVAL
+                    "monitoring_interval": self.settings.MONITORING_INTERVAL,
+                    "buffer_size": 100000,  # 100KB per session
+                    "capture_interval": self.settings.MONITORING_INTERVAL / 2  # Half of monitoring interval
                 }
             )
             
