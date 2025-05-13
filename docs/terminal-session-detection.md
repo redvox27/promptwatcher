@@ -11,15 +11,16 @@ This document describes the implementation of terminal session detection in Prom
 - ~~Interactive terminal filtering~~ ✓
 - ~~Unit tests and integration tests~~ ✓
 - ~~Error handling and logging~~ ✓
+- ~~Terminal device (PTY) identification~~ ✓
+- ~~Session tracking service~~ ✓
+- ~~Terminal monitoring integration~~ ✓
+- ~~Terminal output capture~~ ✓
+- ~~Claude conversation detection~~ ✓
 
 ⏳ **In Progress:**
-- Terminal device (PTY) identification
-- Session tracking service
-- Terminal monitoring integration
+- Repository integration
 
 ❌ **Not Started:**
-- Terminal output capture
-- Claude conversation detection
 - Frontend monitoring controls
 
 ## Overview
@@ -259,24 +260,237 @@ The terminal session detector integrates with the rest of PromptWatcher through:
 
 ## Next Steps
 
-Future enhancements to the terminal session detection system:
+Future enhancements to the terminal monitoring system:
 
-1. **Identify terminal PTYs and file descriptors**:
-   - Map processes to their terminal device files using `lsof`
-   - Determine if the terminal is accessible for reading
-   - Detect terminal capabilities and limitations
+1. ✅ **Terminal output capture** (Completed):
+   - ~~Created `TerminalOutputCapture` for reading terminal device output~~
+   - ~~Implemented multiple capture methods (direct and script-based)~~
+   - ~~Added error handling and timeouts for robust operation~~
+   - ~~Created circular buffer for efficient content storage~~
 
-2. **Implement session tracking service**:
-   - Create a database for tracking terminal sessions over time
-   - Implement periodic scanning for monitoring
-   - Add change detection to identify new and closed sessions
+2. ✅ **Claude conversation detection** (Completed):
+   - ~~Implemented pattern detection for Claude conversations~~
+   - ~~Created robust content processing with ANSI filtering~~
+   - ~~Added conversation extraction with context boundaries~~
+   - ~~Implemented human/Claude message pair extraction~~
 
-3. **Enhance detection accuracy**:
-   - Improve detection of Claude-specific terminal sessions
-   - Add support for different terminal types and shells
-   - Develop heuristics for identifying Claude CLI usage
+3. **Repository Integration** (In Progress):
+   - Connect captured conversations with the prompt repository
+   - Add session metadata to prompt records
+   - Implement deduplication for repeated captures
+   - Create history tracking for terminal sessions
 
-4. **Performance Optimization**:
-   - Implement caching for terminal session information
-   - Add incremental scanning to reduce resource usage
-   - Optimize Docker helper container usage
+### Repository Integration Implementation Plan
+
+The integration between terminal output capture and prompt repository requires connecting the conversation detection system with the domain's data storage. This implementation plan outlines the approach and steps required.
+
+#### 1. Prerequisites and Dependencies
+
+- **Domain Models**: Understand the existing `PromptRecord` model in `app/domain/models.py`
+- **Repository Interface**: Analyze the `PromptRepository` interface in `app/domain/repositories.py`
+- **Terminal Components**: Leverage the existing terminal output capture components
+
+#### 2. Integration Architecture
+
+We will implement the integration through these components:
+
+1. **ConversationRepository Adapter**:
+   - Create an adapter that bridges the terminal monitoring system with the domain repository
+   - Map captured terminal conversations to the domain model
+   - Handle conversion between formats
+
+2. **Enhanced TerminalMonitorCoordinator**:
+   - Inject repository dependency
+   - Complete the `store_prompt` method implementation
+   - Add metadata collection from terminal sessions
+
+3. **Session-to-Repository Bridge**:
+   - Link terminal session IDs with repository records
+   - Maintain mapping between terminal sessions and stored prompts
+
+#### 3. Testing Strategy
+
+Tests will verify each aspect of the integration:
+
+**a. Unit Tests:**
+- **ConversationRepositoryAdapterTests**:
+  - Test mapping between captured conversations and `PromptRecord`
+  - Verify metadata is correctly preserved
+  - Test error handling during storage
+
+- **TerminalMonitorCoordinatorRepositoryTests**:
+  - Test the `store_prompt` method with mocked repository
+  - Verify repository is called with correct parameters
+  - Test handling of various conversation formats
+
+- **DeduplicationTests**:
+  - Test detection of duplicate conversations
+  - Verify deduplication strategies work correctly
+
+**b. Integration Tests:**
+- **CaptureToStorageTests**:
+  - Test the full flow from capture to storage
+  - Verify real conversations are properly stored
+  - Test with mock terminal data
+
+#### 4. Implementation Steps
+
+1. **Create the Repository Adapter**:
+   - Implement `ConversationRepositoryAdapter` class
+   - Add mapping logic between formats
+   - Implement deduplication strategy
+
+2. **Enhance Terminal Monitor Coordinator**:
+   - Complete the `store_prompt` method:
+     ```python
+     async def store_prompt(
+         self,
+         session_id: str,
+         prompt_text: str,
+         response_text: str,
+         terminal_type: str,
+         project_name: str,
+         project_goal: str
+     ) -> Optional[PromptRecord]:
+         """Store a captured prompt in the repository."""
+         try:
+             # Create a prompt record
+             prompt_record = PromptRecord(
+                 prompt_text=prompt_text,
+                 response_text=response_text,
+                 project_name=project_name,
+                 project_goal=project_goal,
+                 terminal_type=terminal_type,
+                 session_id=UUID(session_id),  # Convert string ID to UUID
+                 metadata={
+                     "source": "terminal_monitor",
+                     "capture_time": datetime.now().isoformat(),
+                     "terminal_session_id": session_id
+                 }
+             )
+             
+             # Store in repository
+             await self.repository.add(prompt_record)
+             return prompt_record
+             
+         except Exception as e:
+             logger.error(f"Error storing prompt: {str(e)}")
+             return None
+     ```
+
+3. **Implement Deduplication Strategy**:
+   - Create content hashing function for conversations
+   - Track captured conversation hashes per session
+   - Add logic to avoid re-storing the same conversations
+
+4. **Update Conversation Processing Pipeline**:
+   - Hook repository storage after conversation detection
+   - Add proper error handling and transaction management
+   - Implement automatic prompt cleanup (remove sensitive data)
+
+5. **Add Session Metadata Collection**:
+   - Collect additional metadata from terminal sessions
+   - Add user information and terminal context
+   - Include process information for debugging
+
+#### 5. Deduplication Strategy
+
+To avoid duplicate entries, we'll implement a multi-level approach:
+
+1. **Content-based detection**:
+   - Hash the conversation content (both prompt and response)
+   - Maintain an in-memory cache of recently seen conversation hashes
+   - Skip storing if the hash matches a recent conversation
+
+2. **Position-tracking**:
+   - Track the last capture position for each terminal device
+   - Only process new content beyond the last seen position
+   - Reset tracking when terminal output buffer wraps
+
+3. **Time-based filtering**:
+   - Include timestamp metadata with each capture
+   - Implement time-based filtering to avoid duplicates from rapid captures
+
+#### 6. Repository Dependency Injection
+
+The repository will be injected into the coordinator:
+
+```python
+class TerminalMonitorCoordinator:
+    def __init__(
+        self,
+        docker_client: DockerClient,
+        session_detector: TerminalSessionDetector,
+        device_identifier: TerminalDeviceIdentifier,
+        tracking_service: SessionTrackingService,
+        output_capture: TerminalOutputCapture,
+        output_processor: TerminalOutputProcessor,
+        repository: PromptRepository,  # Added repository dependency
+        settings: Optional[Dict] = None
+    ):
+        # Initialize other components
+        self.repository = repository
+        # ...
+```
+
+This ensures the coordinator can store detected conversations in the repository.
+
+#### 7. Implementation Considerations and Challenges
+
+Several challenges must be addressed during implementation:
+
+1. **Asynchronous Processing**:
+   - Ensure repository operations don't block terminal monitoring
+   - Handle async context properly for database transactions
+   - Implement retry logic for failed storage operations
+
+2. **Memory Management**:
+   - Be mindful of memory usage with long-running sessions
+   - Implement periodic cleanup of conversation caches
+   - Handle large conversations efficiently
+
+3. **Error Recovery**:
+   - Implement recovery mechanisms for interrupted captures
+   - Handle repository connectivity issues gracefully
+   - Include monitoring for storage operations
+
+4. **Security and Privacy**:
+   - Implement sensitive data filtering before storage
+   - Consider adding configurable content filters
+   - Add options for anonymizing user information
+
+#### 8. Testing Approach
+
+The testing strategy will follow these principles:
+
+1. **Test Isolation**:
+   - Use mocks for external dependencies (repository, Docker client)
+   - Create test fixtures with sample terminal conversations
+   - Isolate integration tests from production database
+
+2. **Coverage Goals**:
+   - Aim for 90%+ coverage of repository integration code
+   - Include both positive and negative test cases
+   - Test edge cases like very large conversations
+
+3. **Test Data Management**:
+   - Create realistic sample conversations for testing
+   - Include various Claude conversation formats
+   - Test with different terminal output formats
+
+4. **Test Environment**:
+   - Ensure tests can run in CI environment
+   - Use in-memory database for integration tests
+   - Create dockerized test setup for full integration tests
+
+4. **Frontend enhancements** (Not Started):
+   - Add real-time monitoring status to the UI
+   - Create controls for starting/stopping monitoring
+   - Add terminal session visualization
+   - Implement capture statistics and metrics
+
+5. **Performance optimization** (Not Started):
+   - Implement adaptive scanning based on activity
+   - Add resource limits for Docker operations
+   - Optimize memory usage for long-running sessions
+   - Implement efficient content buffering strategies

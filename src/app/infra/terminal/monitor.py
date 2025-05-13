@@ -4,14 +4,25 @@ import asyncio
 import logging
 import os
 import re
+import sys
 import time
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 from uuid import UUID, uuid4
 
 from app.domain.models import PromptRecord
 from app.domain.repositories import PromptRepository
 from app.domain.services import PromptCaptureService
 from app.settings import Settings
+
+# Add src to path for local imports
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../..')))
+
+from src.app.infra.terminal.docker_client import DockerClient
+from src.app.infra.terminal.session_detector import TerminalSessionDetector
+from src.app.infra.terminal.terminal_device_identifier import TerminalDeviceIdentifier
+from src.app.infra.terminal.session_tracking_service import SessionTrackingService
+from src.app.infra.terminal.terminal_output_capture import TerminalOutputCapture, TerminalOutputBuffer, TerminalOutputProcessor
+from src.app.infra.terminal.terminal_monitor_coordinator import TerminalMonitorCoordinator, MonitorInfo, MonitorStatus
 
 logger = logging.getLogger(__name__)
 
@@ -303,13 +314,100 @@ class TerminalMonitorManager:
         self.settings = settings
         self.monitors = {}
         self.tasks = {}
+        self._initialize_components()
     
-    async def stop_all(self) -> None:
-        """Stop all monitors."""
-        for monitor_id in list(self.tasks.keys()):
-            await self.stop_monitor(monitor_id)
+    def _initialize_components(self):
+        """Initialize the terminal monitoring components."""
+        try:
+            # Create Docker client
+            self.docker_client = DockerClient()
+            
+            # Create session detector
+            self.session_detector = TerminalSessionDetector(self.docker_client)
+            
+            # Create device identifier
+            self.device_identifier = TerminalDeviceIdentifier(self.docker_client)
+            
+            # Create terminal output capture components
+            self.output_capture = TerminalOutputCapture(self.docker_client)
+            self.output_processor = TerminalOutputProcessor()
+            
+            # Create session tracking service
+            self.tracking_service = SessionTrackingService(
+                self.session_detector,
+                self.device_identifier,
+                scan_interval=self.settings.MONITORING_INTERVAL
+            )
+            
+            # Create terminal monitor coordinator
+            self.coordinator = TerminalMonitorCoordinator(
+                self.docker_client,
+                self.session_detector,
+                self.device_identifier,
+                self.tracking_service,
+                output_capture=self.output_capture,
+                output_processor=self.output_processor,
+                settings={
+                    "project_name": self.settings.PROJECT_NAME,
+                    "project_goal": self.settings.PROJECT_GOAL,
+                    "monitoring_interval": self.settings.MONITORING_INTERVAL
+                }
+            )
+            
+            logger.info("Initialized terminal monitoring components")
+            
+        except Exception as e:
+            logger.error(f"Error initializing monitoring components: {str(e)}")
+            # Fall back to mock implementation
+            self.coordinator = None
+    
+    async def start_monitor(self) -> UUID:
+        """
+        Start a new terminal monitor.
         
-        logger.info("Stopped all monitors")
+        Returns:
+            Monitor ID
+        """
+        try:
+            if self.coordinator:
+                # Use the real implementation
+                monitor_id = self.coordinator.start_monitor()
+                monitor_uuid = UUID(monitor_id)
+                self.monitors[monitor_uuid] = {
+                    "id": monitor_id,
+                    "start_time": time.time(),
+                    "status": "active"
+                }
+                
+                # Create a dummy task for compatibility
+                self.tasks[monitor_uuid] = asyncio.create_task(self._dummy_task())
+                
+                logger.info(f"Started real terminal monitor with ID {monitor_id}")
+                return monitor_uuid
+            else:
+                # Fall back to mock implementation
+                monitor_id = uuid4()
+                self.monitors[monitor_id] = {
+                    "start_time": time.time(),
+                    "status": "active"
+                }
+                
+                # Generate mock data
+                self.tasks[monitor_id] = asyncio.create_task(
+                    self._run_mock_monitor(monitor_id)
+                )
+                
+                logger.info(f"Started mock terminal monitor with ID {monitor_id}")
+                return monitor_id
+        except Exception as e:
+            logger.error(f"Error starting monitor: {str(e)}")
+            # Create a fallback mock monitor
+            monitor_id = uuid4()
+            self.monitors[monitor_id] = {
+                "start_time": time.time(),
+                "status": "active"
+            }
+            return monitor_id
     
     async def stop_monitor(self, monitor_id: UUID) -> bool:
         """
@@ -321,21 +419,134 @@ class TerminalMonitorManager:
         Returns:
             Success flag
         """
-        if monitor_id in self.tasks:
-            task = self.tasks[monitor_id]
-            task.cancel()
-            try:
-                await task
-            except asyncio.CancelledError:
-                pass
+        try:
+            if self.coordinator and monitor_id in self.monitors:
+                # Use the real implementation
+                coordinator_id = self.monitors[monitor_id]["id"]
+                success = self.coordinator.stop_monitor(coordinator_id)
+                
+                if success:
+                    if monitor_id in self.tasks:
+                        task = self.tasks[monitor_id]
+                        task.cancel()
+                        try:
+                            await task
+                        except asyncio.CancelledError:
+                            pass
+                        del self.tasks[monitor_id]
+                    
+                    del self.monitors[monitor_id]
+                    logger.info(f"Stopped real terminal monitor with ID {monitor_id}")
+                    return True
             
-            del self.tasks[monitor_id]
-            del self.monitors[monitor_id]
+            # Fall back to mock implementation or if real implementation failed
+            if monitor_id in self.tasks:
+                task = self.tasks[monitor_id]
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+                
+                del self.tasks[monitor_id]
+                del self.monitors[monitor_id]
+                
+                logger.info(f"Stopped mock terminal monitor with ID {monitor_id}")
+                return True
             
-            logger.info(f"Stopped monitor with ID {monitor_id}")
-            return True
+            return False
+            
+        except Exception as e:
+            logger.error(f"Error stopping monitor: {str(e)}")
+            return False
+    
+    async def stop_all(self) -> None:
+        """Stop all monitors."""
+        for monitor_id in list(self.tasks.keys()):
+            await self.stop_monitor(monitor_id)
         
-        return False
+        logger.info("Stopped all monitors")
+    
+    async def get_status(self, monitor_id: UUID) -> Dict:
+        """
+        Get the status of a monitor.
+        
+        Args:
+            monitor_id: Monitor ID
+            
+        Returns:
+            Status information
+        """
+        try:
+            if self.coordinator and monitor_id in self.monitors:
+                # Use the real implementation
+                coordinator_id = self.monitors[monitor_id]["id"]
+                monitor_info = self.coordinator.get_monitor_status(coordinator_id)
+                
+                if monitor_info:
+                    return {
+                        "id": str(monitor_id),
+                        "status": monitor_info.status.value,
+                        "start_time": monitor_info.start_time.isoformat(),
+                        "active_sessions": len(monitor_info.active_sessions),
+                        "prompts_captured": monitor_info.prompts_captured
+                    }
+            
+            # Fall back to mock implementation or if real implementation failed
+            if monitor_id in self.monitors:
+                return {
+                    "id": str(monitor_id),
+                    "status": self.monitors[monitor_id]["status"],
+                    "start_time": self.monitors[monitor_id]["start_time"],
+                    "active_sessions": 0,
+                    "prompts_captured": 0
+                }
+            
+            return {}
+            
+        except Exception as e:
+            logger.error(f"Error getting monitor status: {str(e)}")
+            return {}
+    
+    async def get_all_statuses(self) -> List[Dict]:
+        """
+        Get the status of all monitors.
+        
+        Returns:
+            List of status information dictionaries
+        """
+        result = []
+        for monitor_id in self.monitors:
+            status = await self.get_status(monitor_id)
+            if status:
+                result.append(status)
+        return result
+    
+    async def _run_mock_monitor(self, monitor_id: UUID) -> None:
+        """
+        Run a mock monitor for testing.
+        
+        Args:
+            monitor_id: Monitor ID
+        """
+        try:
+            # Generate some mock data initially
+            await generate_mock_data(self.repository, self.settings, count=2)
+            
+            # Continue generating data at intervals
+            while True:
+                await asyncio.sleep(60)  # Generate more data every minute
+                await generate_mock_data(self.repository, self.settings, count=1)
+                
+        except asyncio.CancelledError:
+            logger.info(f"Mock monitor {monitor_id} cancelled")
+        except Exception as e:
+            logger.error(f"Error in mock monitor: {str(e)}")
+    
+    async def _dummy_task(self) -> None:
+        """Dummy task that does nothing but can be cancelled."""
+        while True:
+            await asyncio.sleep(3600)  # Sleep for a long time
     
     async def generate_mock_data(self, count: int = 5) -> None:
         """
