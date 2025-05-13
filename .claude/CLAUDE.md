@@ -50,3 +50,4 @@ Refer to `todo-list.md` for detailed information about completed features and re
 ## Workflow instructions
 - You'll pull the context of the program from the claude-plan* files
 - You'll use the todo-list.md file at the root of the folder in order to make sure you always know what features have been imlemented and what still has to be done. 
+- Once you're finished with the request: log the prompt in a md file in the folder WIP-promps. The name of the MarkDown file should be "prompt-{n}" where n stands for a number of the markdown file, which is incremental based on the last MarkDown file.

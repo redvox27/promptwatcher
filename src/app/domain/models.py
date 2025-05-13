@@ -16,7 +16,7 @@ class PromptRecord:
     project_goal: str
     id: UUID = field(default_factory=uuid4)
     timestamp: datetime = field(default_factory=datetime.now)
-    terminal_type: str = "iTerm2"
+    terminal_type: str = "Terminal"
     session_id: Optional[UUID] = None
     labels: List[str] = field(default_factory=list)
     metadata: Dict = field(default_factory=dict)

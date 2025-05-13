@@ -22,7 +22,7 @@ class PromptCreate(BaseModel):
     response_text: str
     project_name: str = Field(default="default")
     project_goal: str = Field(default="default")
-    terminal_type: str = Field(default="iTerm2")
+    terminal_type: str = Field(default="Terminal")
 
 
 class PromptResponse(BaseModel):

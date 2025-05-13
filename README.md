@@ -4,7 +4,7 @@ A tool for monitoring and analyzing Claude prompts made in terminal environments
 
 ## Overview
 
-PromptWatcher captures prompts and responses from Claude AI in terminal applications (starting with iTerm2) and stores them in OpenSearch for analysis. The tool provides a web interface for viewing, filtering, and labeling prompts.
+PromptWatcher captures prompts and responses from Claude AI in standard macOS/Linux terminal applications and stores them in OpenSearch for analysis. The tool provides a web interface for viewing, filtering, and labeling prompts.
 
 ## Features
 

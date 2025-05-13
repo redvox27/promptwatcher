@@ -28,7 +28,7 @@ PromptWatcher is a tool for monitoring and analyzing Claude prompts made in term
 ## What Still Needs To Be Done
 
 ### Terminal Monitoring
-- ❌ Implement actual terminal monitoring for iTerm2
+- ❌ Implement actual terminal monitoring for standard macOS/Linux terminals
 - ❌ Create process for detecting Claude prompts/responses
 - ❌ Add monitoring start/stop functionality (endpoints already stubbed)
 - ❌ Add session management for grouped prompts
@@ -65,7 +65,7 @@ PromptWatcher is a tool for monitoring and analyzing Claude prompts made in term
 ### Low Priority
 1. **User Authentication**: Add multi-user support
 2. **Advanced Analytics**: Implement more complex analysis features
-3. **Support for Additional Terminal Types**: Beyond iTerm2
+3. **Support for Additional Terminal Types**: Support for specialized terminals like iTerm2
 
 ## Implementation Notes
 
@@ -76,4 +76,4 @@ PromptWatcher is a tool for monitoring and analyzing Claude prompts made in term
 
 - The frontend uses HTMX for dynamic interaction and already has a polling mechanism for real-time updates of prompt data.
 
-- The terminal monitoring functionality is currently stubbed with mock implementations ready to be replaced with actual terminal monitoring code.
+- The terminal monitoring functionality is currently stubbed with mock implementations ready to be replaced with actual terminal monitoring code for standard macOS/Linux terminals.

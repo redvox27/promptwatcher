@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     PROJECT_GOAL: str = Field(default="default")
     
     # Terminal monitoring settings
-    TERMINAL_TYPE: str = Field(default="iTerm2")
+    TERMINAL_TYPE: str = Field(default="Terminal")
     
     # Paths
     BASE_DIR: Path = Path(__file__).parent.parent

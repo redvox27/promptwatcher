@@ -15,7 +15,7 @@ class PromptCaptureService(Protocol):
         response_text: str,
         project_name: str,
         project_goal: str,
-        terminal_type: str = "iTerm2",
+        terminal_type: str = "Terminal",
         session_id: Optional[UUID] = None,
     ) -> PromptRecord:
         """
