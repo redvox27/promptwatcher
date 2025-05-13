@@ -36,6 +36,29 @@ def get_mock_service(request: Request) -> MockPromptCaptureService:
     return services.prompt_capture_service
 
 
+@router.post("/api/monitors/start", response_model=MonitorResponse)
+async def start_monitor(
+    request: Request,
+    monitor_manager: TerminalMonitorManager = Depends(get_monitor_manager),
+):
+    """
+    Start the prompt monitor.
+    
+    Args:
+        request: FastAPI request
+        monitor_manager: Terminal monitor manager
+        
+    Returns:
+        Status message
+    """
+    logger.info("Start monitor requested (stub)")
+    
+    # This is a stub function to be implemented later
+    return MonitorResponse(
+        message="Monitor start requested (not yet implemented)"
+    )
+
+
 @router.post("/api/monitors/mock", response_model=MonitorResponse)
 async def generate_mock_data(
     request: Request,
@@ -67,8 +90,6 @@ async def generate_mock_data(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-
-
 @router.delete("/api/monitors", response_model=MonitorResponse)
 async def stop_all_monitors(
     request: Request,
@@ -84,13 +105,14 @@ async def stop_all_monitors(
     Returns:
         Status message
     """
+    logger.info("Stop monitor requested (stub)")
+    
     try:
         await monitor_manager.stop_all()
         return MonitorResponse(message="All monitors stopped")
     except Exception as e:
+        logger.error(f"Error stopping monitors: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
-
-
 
 
 @router.post("/api/monitors/submit", response_model=MonitorResponse)

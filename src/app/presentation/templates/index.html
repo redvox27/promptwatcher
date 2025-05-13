@@ -2,13 +2,41 @@
 
 {% block content %}
 <div class="grid grid-cols-1 gap-6 md:grid-cols-4">
-    <!-- Sidebar with stats and filters -->
+    <!-- Sidebar with controls -->
     <div class="md:col-span-1">
         <div class="bg-white p-4 rounded shadow">
-            <h2 class="text-xl font-semibold mb-4">Controls</h2>
+            <h2 class="text-xl font-semibold mb-4">Monitor Controls</h2>
             
-            <!-- Mock Data Generation -->
+            <!-- Start/Stop Monitor -->
             <div class="space-y-2">
+                <div class="flex items-center space-x-2">
+                    <button 
+                        id="start-monitor-btn"
+                        class="flex-grow bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded"
+                        hx-post="/api/monitors/start"
+                        hx-trigger="click"
+                        hx-swap="none"
+                        hx-indicator="#indicator"
+                    >
+                        Start Monitor
+                    </button>
+                </div>
+                <div class="flex items-center space-x-2 mt-2">
+                    <button 
+                        id="stop-monitor-btn"
+                        class="flex-grow bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded"
+                        hx-delete="/api/monitors"
+                        hx-trigger="click"
+                        hx-swap="none"
+                        hx-indicator="#indicator"
+                    >
+                        Stop Monitor
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Mock Data Generation (for testing) -->
+            <div class="space-y-2 mt-4">
                 <h3 class="font-medium text-gray-700">Generate Test Data</h3>
                 <div class="flex items-center space-x-2">
                     <input 
@@ -32,55 +60,6 @@
                     </button>
                 </div>
             </div>
-            
-            <!-- Direct Submission Form -->
-            <div class="space-y-2 mt-4">
-                <h3 class="font-medium text-gray-700">Submit Prompt</h3>
-                <form hx-post="/api/monitors/submit" hx-swap="none" hx-indicator="#indicator">
-                    <div class="space-y-2">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Prompt</label>
-                            <textarea name="prompt_text" rows="3" class="w-full border rounded px-2 py-1 text-sm" placeholder="Enter the prompt text..."></textarea>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Response</label>
-                            <textarea name="response_text" rows="3" class="w-full border rounded px-2 py-1 text-sm" placeholder="Enter the response text..."></textarea>
-                        </div>
-                        <button type="submit" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">
-                            Submit Prompt
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-        
-        <div class="bg-white p-4 rounded shadow mt-4">
-            <h2 class="text-xl font-semibold mb-4">Filter</h2>
-            <form hx-get="/api/prompts/ui/list" hx-target="#prompts-list" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Project</label>
-                    <select name="project_name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        <option value="">All Projects</option>
-                        <!-- Projects will be populated here -->
-                    </select>
-                </div>
-                
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Terminal Type</label>
-                    <select name="terminal_type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        <option value="">All Terminals</option>
-                        <option value="macOS Terminal">macOS Terminal</option>
-                        <option value="Direct API Submission">Direct API</option>
-                        <option value="Mock">Mock</option>
-                    </select>
-                </div>
-                
-                <div>
-                    <button type="submit" class="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                        Apply Filters
-                    </button>
-                </div>
-            </form>
         </div>
     </div>
     
@@ -111,7 +90,7 @@
             <div 
                 id="prompts-list" 
                 hx-get="/api/prompts/ui/list" 
-                hx-trigger="load"
+                hx-trigger="load, every 5s"
                 class="space-y-4"
             >
                 <!-- Placeholder for loading state -->
